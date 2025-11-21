@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import ColorPicker from "@/components/ColorPicker";
