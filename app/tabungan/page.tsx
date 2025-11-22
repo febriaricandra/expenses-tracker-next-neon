@@ -4,13 +4,17 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export default function Tabungan() {
-  const [savings, setSavings] = useState<Array<{ id: string; bank: string; amount: number }>>([]);
+  const [savings, setSavings] = useState<Array<{ id: string; bank: string; accountNumber: string; amount: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ bank: "", accountNumber: "", amount: "" });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
+  const [editModal, setEditModal] = useState<{ open: boolean; saving: any | null }>({ open: false, saving: null });
+  const [editForm, setEditForm] = useState({ bank: "", accountNumber: "", amount: "" });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const fetchSavings = () => {
     setLoading(true);
@@ -83,8 +87,21 @@ export default function Tabungan() {
           savings.map((s, idx) => (
             <div key={s.id || idx} className="bg-gradient-to-br from-[#1B2A49] to-[#2E3A5A] rounded-xl p-4 flex flex-col">
               <span className="text-white text-lg font-semibold">{s.bank}</span>
+              <span className="text-white text-xs">{s.accountNumber}</span>
               <span className="text-white text-sm">Saldo</span>
               <span className="text-white text-xl font-bold">Rp {s.amount.toLocaleString("id-ID")}</span>
+              <div className="flex gap-2 mt-2">
+                <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={() => {
+                  setEditForm({ bank: s.bank, accountNumber: s.accountNumber || "", amount: s.amount.toString() });
+                  setEditModal({ open: true, saving: s });
+                }}>Edit</button>
+                <button className="bg-red-600 text-white px-3 py-1 rounded" onClick={async () => {
+                  if (confirm("Yakin hapus tabungan ini?")) {
+                    await fetch(`/api/savings?id=${s.id}`, { method: "DELETE" });
+                    fetchSavings();
+                  }
+                }}>Hapus</button>
+              </div>
             </div>
           ))
         )}
@@ -132,6 +149,47 @@ export default function Tabungan() {
                 <button type="submit" className="flex-1 py-2 rounded-lg bg-green-600 text-white font-semibold" disabled={formLoading}>
                   {formLoading ? "Memproses..." : "Tambah"}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Edit Tabungan */}
+      {editModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-[#232B3E] rounded-2xl p-6 w-full max-w-xs flex flex-col">
+            <h3 className="text-white text-lg font-semibold mb-4">Edit Tabungan</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setEditLoading(true);
+              setEditError("");
+              try {
+                const res = await fetch(`/api/savings?id=${editModal.saving.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    bank: editForm.bank,
+                    accountNumber: editForm.accountNumber,
+                    amount: Number(editForm.amount),
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Gagal edit tabungan");
+                setEditModal({ open: false, saving: null });
+                fetchSavings();
+              } catch (err: any) {
+                setEditError(err.message);
+              } finally {
+                setEditLoading(false);
+              }
+            }} className="flex flex-col gap-3">
+              <input name="bank" value={editForm.bank} onChange={e => setEditForm(f => ({ ...f, bank: e.target.value }))} className="rounded-lg px-4 py-2 bg-[#181F2C] text-white placeholder:text-white/60" placeholder="Nama Bank/E-Wallet" required />
+              <input name="accountNumber" value={editForm.accountNumber} onChange={e => setEditForm(f => ({ ...f, accountNumber: e.target.value }))} className="rounded-lg px-4 py-2 bg-[#181F2C] text-white placeholder:text-white/60" placeholder="No. Rekening/ID (opsional)" />
+              <input name="amount" type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="rounded-lg px-4 py-2 bg-[#181F2C] text-white placeholder:text-white/60" placeholder="Saldo" required />
+              {editError && <span className="text-red-400 text-xs">{editError}</span>}
+              <div className="flex gap-2 mt-2">
+                <button type="button" className="flex-1 py-2 rounded-lg bg-gray-500 text-white" onClick={() => setEditModal({ open: false, saving: null })} disabled={editLoading}>Batal</button>
+                <button type="submit" className="flex-1 py-2 rounded-lg bg-blue-600 text-white font-semibold" disabled={editLoading}>{editLoading ? "Memproses..." : "Simpan"}</button>
               </div>
             </form>
           </div>

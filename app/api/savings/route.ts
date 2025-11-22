@@ -38,3 +38,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Gagal menambah tabungan" }, { status: 400 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const token = request.cookies.get("token")?.value;
+  if (!token) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const userId = payload.id;
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ message: "ID tabungan wajib" }, { status: 400 });
+    }
+    const { bank, accountNumber, amount } = await request.json();
+    await sql`
+      UPDATE "Savings"
+      SET bank = ${bank}, accountNumber = ${accountNumber}, amount = ${amount}, updatedAt = NOW()
+      WHERE id = ${id} AND userId = ${userId}
+    `;
+    return NextResponse.json({ message: "Tabungan berhasil diupdate" }, { status: 200 });
+  } catch (err) {
+    return NextResponse.json({ message: "Gagal update tabungan" }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const token = request.cookies.get("token")?.value;
+  if (!token) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const userId = payload.id;
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ message: "ID tabungan wajib" }, { status: 400 });
+    }
+    await sql`
+      DELETE FROM "Savings" WHERE id = ${id} AND userId = ${userId}
+    `;
+    return NextResponse.json({ message: "Tabungan berhasil dihapus" }, { status: 200 });
+  } catch (err) {
+    return NextResponse.json({ message: "Gagal hapus tabungan" }, { status: 400 });
+  }
+}
